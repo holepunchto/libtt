@@ -82,7 +82,7 @@ tt_pty_read_stop (tt_pty_t *handle) {
   handle->flags &= ~TT_PTY_READING;
   handle->on_read = NULL;
 
-  return 0;
+  return uv_read_stop((uv_stream_t *) &handle->tty);
 }
 
 static void
