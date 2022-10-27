@@ -167,6 +167,64 @@ err:
   return uv_translate_sys_error(GetLastError());
 }
 
+static inline int
+tt_to_wstring (const char *str, int len, PWCHAR wstr) {
+  len = MultiByteToWideChar(CP_UTF8, 0, str, -1, wstr, len);
+
+  if (len == 0) return uv_translate_sys_error(GetLastError());
+
+  return len;
+}
+
+static inline int
+tt_prepare_command_line (const tt_process_options_t *process, PWCHAR *pcmd) {
+  const char *file = process->file;
+
+  int len = tt_to_wstring(process->file, 0, NULL);
+  if (len < 0) return len;
+
+  PWCHAR cmd = malloc(len * sizeof(WCHAR));
+
+  int err = tt_to_wstring(process->file, len, cmd);
+  if (err < 0) goto err;
+
+  if (process->args != NULL) {
+    int i = 1, offset = len - 1;
+
+    while (TRUE) {
+      char *arg = process->args[i++];
+
+      if (arg == NULL) break;
+
+      int arg_len = tt_to_wstring(arg, 0, NULL);
+      if (arg_len < 0) {
+        err = arg_len;
+        goto err;
+      }
+
+      cmd[offset++] = L' ';
+
+      len += arg_len + 1;
+
+      cmd = realloc(cmd, len * sizeof(WCHAR));
+
+      int err = tt_to_wstring(arg, arg_len, cmd + offset);
+      if (err < 0) goto err;
+
+      offset += arg_len;
+    }
+  }
+
+  *pcmd = cmd;
+
+  return 0;
+
+err:
+  if (cmd) free(cmd);
+
+  return err;
+}
+
 int
 tt_pty_spawn (uv_loop_t *loop, tt_pty_t *handle, const tt_term_options_t *term, const tt_process_options_t *process) {
   int err = 0;
@@ -184,10 +242,15 @@ tt_pty_spawn (uv_loop_t *loop, tt_pty_t *handle, const tt_term_options_t *term, 
   err = tt_prepare_startup_information(handle);
   if (err < 0) goto err;
 
-  PWCHAR cmd = L"node test/fixtures/hello.mjs";
+  PWCHAR cmd = NULL;
+
+  err = tt_prepare_command_line(process, &cmd);
+  if (err < 0) goto err;
 
   err = tt_launch_process(handle, cmd, in, out);
   if (err < 0) goto err;
+
+  free(cmd);
 
   handle->exit.data = handle;
   handle->in.data = handle;
@@ -213,6 +276,8 @@ tt_pty_spawn (uv_loop_t *loop, tt_pty_t *handle, const tt_term_options_t *term, 
 err:
   if (in) CloseHandle(in);
   if (out) CloseHandle(out);
+
+  if (cmd) free(cmd);
 
   return err;
 }
