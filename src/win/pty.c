@@ -1,4 +1,5 @@
 #include <uv.h>
+#include <assert.h>
 
 #include "../../include/tt.h"
 
@@ -10,107 +11,98 @@ typedef enum {
   TT_PTY_READING = 1,
 } tt_pty_flags;
 
-int
-tt_create_console (tt_pty_t *pty, COORD size, HANDLE *inputRead, HANDLE *outputWrite) {
-  HANDLE inRead = NULL, inWrite = NULL;
-  HANDLE outRead = NULL, outWrite = NULL;
+static inline int
+tt_create_console (tt_pty_t *pty, COORD size, HANDLE *in, HANDLE *out) {
+  HANDLE in_read = NULL, in_write = NULL;
+  HANDLE out_read = NULL, out_write = NULL;
 
-  if (!CreatePipe(&inRead, &inWrite, NULL, 0)) {
-    goto err;
-  }
+  BOOL success;
 
-  if (!CreatePipe(&outRead, &outWrite, NULL, 0)) {
-    goto err;
-  }
+  success = CreatePipe(&in_read, &in_write, NULL, 0);
+  if (!success) goto err;
+
+  success = CreatePipe(&out_read, &out_write, NULL, 0);
+  if (!success) goto err;
 
   HPCON handle;
 
-  HRESULT res = CreatePseudoConsole(size, inRead, outWrite, 0, &handle);
+  HRESULT res = CreatePseudoConsole(size, in_read, out_write, 0, &handle);
 
-  if (FAILED(res)) {
+  if (res < 0) {
     SetLastError(res);
     goto err;
   }
 
   pty->console.handle = handle;
-  pty->console.in = inWrite;
-  pty->console.out = outRead;
+  pty->console.in = in_write;
+  pty->console.out = out_read;
   pty->console.process = NULL;
 
-  *inputRead = inRead;
-  *outputWrite = outWrite;
+  *in = in_read;
+  *out = out_write;
 
   return 0;
 
 err:
-  if (inRead) CloseHandle(inRead);
-  if (inWrite) CloseHandle(inWrite);
-  if (outRead) CloseHandle(outRead);
-  if (outWrite) CloseHandle(outWrite);
+  if (in_read) CloseHandle(in_read);
+  if (in_write) CloseHandle(in_write);
+  if (out_read) CloseHandle(out_read);
+  if (out_write) CloseHandle(out_write);
 
   return uv_translate_sys_error(GetLastError());
 }
 
-int
-tt_prepare_startup_information (tt_pty_t *pty, STARTUPINFOEXW *psi) {
-  STARTUPINFOEXW si;
-  memset(&si, 0, sizeof(si));
+static inline int
+tt_prepare_startup_information (tt_pty_t *pty) {
+  STARTUPINFOEXW info;
+  memset(&info, 0, sizeof(info));
 
-  si.StartupInfo.cb = sizeof(STARTUPINFOEXW);
-  si.StartupInfo.dwFlags |= STARTF_USESTDHANDLES;
+  info.StartupInfo.cb = sizeof(STARTUPINFOEXW);
+  info.StartupInfo.dwFlags |= STARTF_USESTDHANDLES;
 
-  size_t bytesRequired;
-  InitializeProcThreadAttributeList(NULL, 1, 0, &bytesRequired);
+  size_t attr_len;
+  InitializeProcThreadAttributeList(NULL, 1, 0, &attr_len);
 
-  si.lpAttributeList = malloc(bytesRequired);
+  info.lpAttributeList = malloc(attr_len);
 
-  if (!InitializeProcThreadAttributeList(si.lpAttributeList, 1, 0, &bytesRequired)) {
-    goto err;
-  }
+  BOOL success;
 
-  if (!UpdateProcThreadAttribute(si.lpAttributeList, 0, PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE, pty->console.handle, sizeof(pty->console.handle), NULL, NULL)) {
-    goto err;
-  }
+  success = InitializeProcThreadAttributeList(
+    info.lpAttributeList,
+    1,
+    0,
+    &attr_len
+  );
 
-  *psi = si;
+  if (!success) goto err;
 
-  return 0;
+  success = UpdateProcThreadAttribute(
+    info.lpAttributeList,
+    0,
+    PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE,
+    pty->console.handle,
+    sizeof(pty->console.handle),
+    NULL,
+    NULL
+  );
 
-err:
-  if (si.lpAttributeList) free(si.lpAttributeList);
+  if (!success) goto err;
 
-  return uv_translate_sys_error(GetLastError());
-}
-
-int
-tt_launch_process (tt_pty_t *pty, const wchar_t *cmd, HANDLE in, HANDLE out, STARTUPINFOEXW *si) {
-  wchar_t *cmdw = _wcsdup(cmd);
-
-  PROCESS_INFORMATION pi;
-  memset(&pi, 0, sizeof(pi));
-
-  if (!CreateProcessW(NULL, cmdw, NULL, NULL, FALSE, EXTENDED_STARTUPINFO_PRESENT, NULL, NULL, &si->StartupInfo, &pi)) {
-    goto err;
-  }
-
-  CloseHandle(pi.hThread);
-  CloseHandle(in);
-  CloseHandle(out);
-
-  free(cmdw);
-
-  pty->console.process = pi.hProcess;
+  pty->console.info = info;
 
   return 0;
 
 err:
-  free(cmdw);
+  if (info.lpAttributeList) {
+    DeleteProcThreadAttributeList(info.lpAttributeList);
+    free(info.lpAttributeList);
+  }
 
   return uv_translate_sys_error(GetLastError());
 }
 
 static void
-on_exit_event (void *context, BOOLEAN fired) {
+on_exit_wait (void *context, BOOLEAN fired) {
   tt_pty_t *handle = (tt_pty_t *) context;
 
   uv_async_send(&handle->exit);
@@ -120,66 +112,113 @@ static void
 on_exit (uv_async_t *async) {
   tt_pty_t *handle = (tt_pty_t *) async->data;
 
+  tt_pty_read_stop(handle);
+
+  uv_close((uv_handle_t*) &handle->exit, NULL);
+  uv_close((uv_handle_t*) &handle->input, NULL);
+  uv_close((uv_handle_t*) &handle->output, NULL);
+
   UnregisterWait(handle->console.exit);
+
+  ClosePseudoConsole(handle->console.handle);
+
+  CloseHandle(handle->console.in);
+  CloseHandle(handle->console.out);
+  CloseHandle(handle->console.process);
+}
+
+static inline int
+tt_launch_process (tt_pty_t *pty, PWCHAR cmd, HANDLE in, HANDLE out) {
+  PROCESS_INFORMATION info;
+  memset(&info, 0, sizeof(info));
+
+  BOOL success;
+
+  success = CreateProcessW(
+    NULL,
+    cmd,
+    NULL,
+    NULL,
+    FALSE,
+    EXTENDED_STARTUPINFO_PRESENT,
+    NULL,
+    NULL,
+    &pty->console.info.StartupInfo,
+    &info
+  );
+
+  if (!success) goto err;
+
+  CloseHandle(info.hThread);
+  CloseHandle(in);
+  CloseHandle(out);
+
+  pty->pid = info.dwProcessId;
+  pty->console.process = info.hProcess;
+
+  RegisterWaitForSingleObject(
+    &pty->console.exit,
+    pty->console.process,
+    on_exit_wait,
+    (void *) pty,
+    INFINITE,
+    WT_EXECUTEONLYONCE
+  );
+
+  return 0;
+
+err:
+  return uv_translate_sys_error(GetLastError());
 }
 
 int
 tt_pty_spawn (uv_loop_t *loop, tt_pty_t *handle, const tt_term_options_t *term, const tt_process_options_t *process) {
-  int err;
+  int err = 0;
 
   COORD size = {
     .X = term->width,
     .Y = term->height,
   };
 
-  HANDLE in, out;
+  HANDLE in = NULL, out = NULL;
 
   err = tt_create_console(handle, size, &in, &out);
-  if (err < 0) return err;
+  if (err < 0) goto err;
 
-  STARTUPINFOEXW si;
-
-  err = tt_prepare_startup_information(handle, &si);
-  if (err < 0) return err;
+  err = tt_prepare_startup_information(handle);
+  if (err < 0) goto err;
 
   PWCHAR cmd = L"node test/fixtures/hello.mjs";
 
-  err = tt_launch_process(handle, cmd, in, out, &si);
-  if (err < 0) return err;
+  err = tt_launch_process(handle, cmd, in, out);
+  if (err < 0) goto err;
 
-  uv_async_init(loop, &handle->exit, on_exit);
-
-  RegisterWaitForSingleObject(
-    &handle->console.exit,
-    handle->console.process,
-    on_exit_event,
-    (void *) handle,
-    INFINITE,
-    WT_EXECUTEONLYONCE
-  );
-
+  handle->exit.data = handle;
   handle->input.data = handle;
   handle->output.data = handle;
 
-  err = uv_pipe_init(loop, &handle->input, 0);
-  if (err < 0) return err;
+  err = uv_async_init(loop, &handle->exit, on_exit);
+  assert(err == 0);
 
-  err = uv_stream_set_blocking((uv_stream_t *) &handle->input, 1);
-  if (err < 0) return err;
+  err = uv_pipe_init(loop, &handle->input, 0);
+  assert(err == 0);
 
   err = uv_pipe_open(&handle->input, uv_open_osfhandle(handle->console.in));
-  if (err < 0) return err;
+  assert(err == 0);
 
   err = uv_pipe_init(loop, &handle->output, 0);
-  if (err < 0) return err;
-
-  err = uv_stream_set_blocking((uv_stream_t *) &handle->output, 1);
-  if (err < 0) return err;
+  assert(err == 0);
 
   err = uv_pipe_open(&handle->output, uv_open_osfhandle(handle->console.out));
-  if (err < 0) return err;
+  assert(err == 0);
 
   return 0;
+
+err:
+  if (in) CloseHandle(in);
+  if (out) CloseHandle(out);
+
+  return err;
 }
 
 static void

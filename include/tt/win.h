@@ -15,7 +15,10 @@ struct tt_pty_s {
     void* out;
     void* process;
     void* exit;
+    STARTUPINFOEXW info;
   } console;
+
+  uv_pid_t pid;
 
   int flags;
 
