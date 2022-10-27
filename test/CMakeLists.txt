@@ -1,5 +1,6 @@
 list(APPEND tests
   spawn
+  spawn-exit-status
 )
 
 foreach(test IN LISTS tests)

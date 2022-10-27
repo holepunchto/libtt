@@ -23,6 +23,8 @@ target_sources(
   tt
   INTERFACE
     include/tt.h
+  PRIVATE
+    src/pty.c
 )
 
 if(UNIX)

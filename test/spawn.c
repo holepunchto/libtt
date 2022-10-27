@@ -8,8 +8,24 @@
 
 uv_loop_t *loop;
 
+bool close_called = false;
+bool exit_called = false;
 bool read_called = false;
 bool eof_reached = false;
+
+static void
+on_close (tt_pty_t *handle) {
+  close_called = true;
+}
+
+static void
+on_exit (tt_pty_t *handle, int64_t exit_status) {
+  exit_called = true;
+
+  assert(exit_status == 0);
+
+  tt_pty_close(handle, on_close);
+}
 
 static void
 on_read (tt_pty_t *pty, ssize_t read_len, const uv_buf_t *buf) {
@@ -39,7 +55,7 @@ main () {
   };
 
   tt_pty_t pty;
-  e = tt_pty_spawn(loop, &pty, &term, &process);
+  e = tt_pty_spawn(loop, &pty, &term, &process, on_exit);
   assert(e == 0);
 
   e = tt_pty_read_start(&pty, on_read);
@@ -47,6 +63,8 @@ main () {
 
   uv_run(loop, UV_RUN_DEFAULT);
 
+  assert(close_called);
+  assert(exit_called);
   assert(read_called);
   assert(eof_reached);
 
