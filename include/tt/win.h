@@ -6,8 +6,8 @@
 #include "../tt.h"
 
 struct tt_pty_s {
-  uv_pipe_t input;
-  uv_pipe_t output;
+  uv_pipe_t in;
+  uv_pipe_t out;
 
   struct {
     void* handle;

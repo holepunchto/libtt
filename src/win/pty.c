@@ -112,11 +112,7 @@ static void
 on_exit (uv_async_t *async) {
   tt_pty_t *handle = (tt_pty_t *) async->data;
 
-  tt_pty_read_stop(handle);
-
   uv_close((uv_handle_t *) &handle->exit, NULL);
-  uv_close((uv_handle_t *) &handle->input, NULL);
-  uv_close((uv_handle_t *) &handle->output, NULL);
 
   UnregisterWait(handle->console.exit);
 
@@ -194,22 +190,22 @@ tt_pty_spawn (uv_loop_t *loop, tt_pty_t *handle, const tt_term_options_t *term, 
   if (err < 0) goto err;
 
   handle->exit.data = handle;
-  handle->input.data = handle;
-  handle->output.data = handle;
+  handle->in.data = handle;
+  handle->out.data = handle;
 
   err = uv_async_init(loop, &handle->exit, on_exit);
   assert(err == 0);
 
-  err = uv_pipe_init(loop, &handle->input, 0);
+  err = uv_pipe_init(loop, &handle->in, 0);
   assert(err == 0);
 
-  err = uv_pipe_open(&handle->input, uv_open_osfhandle(handle->console.in));
+  err = uv_pipe_open(&handle->in, uv_open_osfhandle(handle->console.in));
   assert(err == 0);
 
-  err = uv_pipe_init(loop, &handle->output, 0);
+  err = uv_pipe_init(loop, &handle->out, 0);
   assert(err == 0);
 
-  err = uv_pipe_open(&handle->output, uv_open_osfhandle(handle->console.out));
+  err = uv_pipe_open(&handle->out, uv_open_osfhandle(handle->console.out));
   assert(err == 0);
 
   return 0;
@@ -245,7 +241,7 @@ tt_pty_read_start (tt_pty_t *handle, tt_pty_read_cb cb) {
   handle->flags |= TT_PTY_READING;
   handle->on_read = cb;
 
-  return uv_read_start((uv_stream_t *) &handle->output, on_alloc, on_read);
+  return uv_read_start((uv_stream_t *) &handle->out, on_alloc, on_read);
 }
 
 int
@@ -257,7 +253,7 @@ tt_pty_read_stop (tt_pty_t *handle) {
   handle->flags &= ~TT_PTY_READING;
   handle->on_read = NULL;
 
-  return uv_read_stop((uv_stream_t *) &handle->output);
+  return uv_read_stop((uv_stream_t *) &handle->out);
 }
 
 static void
@@ -273,5 +269,5 @@ tt_pty_write (tt_pty_write_t *req, tt_pty_t *handle, const uv_buf_t bufs[], unsi
   req->on_write = cb;
   req->req.data = (void *) req;
 
-  return uv_write(&req->req, (uv_stream_t *) &handle->input, bufs, bufs_len, on_write);
+  return uv_write(&req->req, (uv_stream_t *) &handle->in, bufs, bufs_len, on_write);
 }
