@@ -1,5 +1,5 @@
-#include <uv.h>
 #include <assert.h>
+#include <uv.h>
 
 #include "../../include/tt.h"
 
@@ -114,9 +114,9 @@ on_exit (uv_async_t *async) {
 
   tt_pty_read_stop(handle);
 
-  uv_close((uv_handle_t*) &handle->exit, NULL);
-  uv_close((uv_handle_t*) &handle->input, NULL);
-  uv_close((uv_handle_t*) &handle->output, NULL);
+  uv_close((uv_handle_t *) &handle->exit, NULL);
+  uv_close((uv_handle_t *) &handle->input, NULL);
+  uv_close((uv_handle_t *) &handle->output, NULL);
 
   UnregisterWait(handle->console.exit);
 
