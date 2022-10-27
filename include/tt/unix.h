@@ -10,7 +10,7 @@ struct tt_pty_s {
   uv_tty_t tty;
 
   int fd;
-  pid_t pid;
+  uv_pid_t pid;
 
   int flags;
 
