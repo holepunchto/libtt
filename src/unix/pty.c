@@ -45,7 +45,10 @@ tt_pty_spawn (uv_loop_t *loop, tt_pty_t *handle, const tt_term_options_t *term, 
   handle->active = 0;
   handle->on_exit = exit_cb;
 
-  int primary, replica, err;
+  handle->tty.data = (void *) handle;
+  handle->process.data = (void *) handle;
+
+  int primary = -1, replica = -1, err;
 
   struct winsize size = {
     .ws_col = term ? term->width : 80,
@@ -54,54 +57,43 @@ tt_pty_spawn (uv_loop_t *loop, tt_pty_t *handle, const tt_term_options_t *term, 
 
   int res = openpty(&primary, &replica, NULL, NULL, &size);
 
-  if (res < 0) return uv_translate_sys_error(errno);
-
-  uv_stdio_container_t stdio[3] = {
-    {
-      .flags = UV_INHERIT_FD,
-      .data.fd = replica,
-    },
-    {
-      .flags = UV_INHERIT_FD,
-      .data.fd = replica,
-    },
-    {
-      .flags = UV_INHERIT_FD,
-      .data.fd = replica,
-    },
+  if (res < 0) {
+    err = uv_translate_sys_error(errno);
+    goto err;
   };
+
+  err = uv_tty_init(loop, &handle->tty, primary, 0);
+  if (err < 0) goto err;
+  handle->active++;
 
   uv_process_options_t options = {
     .exit_cb = on_exit,
     .file = process->file,
     .args = process->args,
     .cwd = process->cwd,
-    .stdio = stdio,
+    .stdio = (uv_stdio_container_t[]){
+      {.flags = UV_INHERIT_FD, .data.fd = replica},
+      {.flags = UV_INHERIT_FD, .data.fd = replica},
+      {.flags = UV_INHERIT_FD, .data.fd = replica},
+    },
     .stdio_count = 3,
   };
 
   err = uv_spawn(loop, &handle->process, &options);
+  if (err < 0) goto err;
+  handle->active++;
 
   close(replica);
 
-  if (err < 0) {
-    close(primary);
-
-    return err;
-  }
-
-  handle->active++;
-
   handle->pid = handle->process.pid;
 
-  handle->tty.data = (void *) handle;
-  handle->process.data = (void *) handle;
-
-  err = uv_tty_init(loop, &handle->tty, primary, 0);
-  assert(err == 0);
-  handle->active++;
-
   return 0;
+
+err:
+  if (primary != -1) close(primary);
+  if (replica != -1) close(replica);
+
+  return err;
 }
 
 static void
