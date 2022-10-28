@@ -14,7 +14,12 @@ static void
 on_exit (tt_pty_t *handle, int64_t exit_status, int term_signal) {
   exit_called = true;
 
+#ifdef _WIN32
   assert(exit_status == 1);
+#else
+  assert(exit_status == 0);
+#endif
+
   assert(term_signal == SIGTERM);
 
   tt_pty_close(handle, NULL);
