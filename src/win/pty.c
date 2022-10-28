@@ -12,7 +12,38 @@ typedef enum {
 } tt_pty_flags;
 
 static inline int
-tt_create_console (tt_pty_t *pty, COORD size, HANDLE *in, HANDLE *out) {
+tt_console_init (tt_pty_t *pty) {
+  pty->console.handle = NULL;
+  pty->console.in = NULL;
+  pty->console.out = NULL;
+  pty->console.process = NULL;
+
+  memset(&pty->console.info, 0, sizeof(pty->console.info));
+
+  return 0;
+}
+
+static inline void
+tt_console_info_destroy (tt_pty_t *pty) {
+  if (pty->console.info.lpAttributeList) {
+    DeleteProcThreadAttributeList(pty->console.info.lpAttributeList);
+    free(pty->console.info.lpAttributeList);
+  }
+}
+
+static inline void
+tt_console_destroy (tt_pty_t *pty) {
+  if (pty->console.handle) ClosePseudoConsole(pty->console.handle);
+
+  if (pty->console.in) CloseHandle(pty->console.in);
+  if (pty->console.out) CloseHandle(pty->console.out);
+  if (pty->console.process) CloseHandle(pty->console.process);
+
+  tt_console_info_destroy(pty);
+}
+
+static inline int
+tt_console_open (tt_pty_t *pty, COORD size, HANDLE *in, HANDLE *out) {
   HANDLE in_read = NULL, in_write = NULL;
   HANDLE out_read = NULL, out_write = NULL;
 
@@ -53,7 +84,7 @@ err:
 }
 
 static inline int
-tt_prepare_startup_information (tt_pty_t *pty) {
+tt_prepare_console_info (tt_pty_t *pty) {
   STARTUPINFOEXW info;
   memset(&info, 0, sizeof(info));
 
@@ -93,10 +124,7 @@ tt_prepare_startup_information (tt_pty_t *pty) {
   return 0;
 
 err:
-  if (info.lpAttributeList) {
-    DeleteProcThreadAttributeList(info.lpAttributeList);
-    free(info.lpAttributeList);
-  }
+  tt_console_info_destroy(pty);
 
   return uv_translate_sys_error(GetLastError());
 }
@@ -111,7 +139,7 @@ tt_to_wstring (const char *str, int len, PWCHAR wstr) {
 }
 
 static inline int
-tt_prepare_command_line (const tt_process_options_t *process, PWCHAR *pcmd) {
+tt_prepare_console_command (const tt_process_options_t *process, PWCHAR *pcmd) {
   const char *file = process->file;
 
   int len = tt_to_wstring(process->file, 0, NULL);
@@ -183,11 +211,7 @@ on_exit (uv_async_t *async) {
 
   GetExitCodeProcess(handle->console.process, &handle->exit_status);
 
-  ClosePseudoConsole(handle->console.handle);
-
-  CloseHandle(handle->console.in);
-  CloseHandle(handle->console.out);
-  CloseHandle(handle->console.process);
+  tt_console_destroy(handle);
 
   handle->on_exit(handle, handle->exit_status);
 
@@ -195,7 +219,7 @@ on_exit (uv_async_t *async) {
 }
 
 static inline int
-tt_launch_process (tt_pty_t *pty, PWCHAR cmd, HANDLE in, HANDLE out) {
+tt_console_spawn (tt_pty_t *pty, PWCHAR cmd, HANDLE in, HANDLE out) {
   PROCESS_INFORMATION info;
   memset(&info, 0, sizeof(info));
 
@@ -236,7 +260,10 @@ tt_pty_spawn (uv_loop_t *loop, tt_pty_t *handle, const tt_term_options_t *term, 
   handle->active = 0;
   handle->on_exit = exit_cb;
 
-  int err = 0;
+  int err;
+
+  err = tt_console_init(handle);
+  if (err < 0) goto err;
 
   COORD size = {
     .X = term->width,
@@ -245,18 +272,18 @@ tt_pty_spawn (uv_loop_t *loop, tt_pty_t *handle, const tt_term_options_t *term, 
 
   HANDLE in = NULL, out = NULL;
 
-  err = tt_create_console(handle, size, &in, &out);
+  err = tt_console_open(handle, size, &in, &out);
   if (err < 0) goto err;
 
-  err = tt_prepare_startup_information(handle);
+  err = tt_prepare_console_info(handle);
   if (err < 0) goto err;
 
   PWCHAR cmd = NULL;
 
-  err = tt_prepare_command_line(process, &cmd);
+  err = tt_prepare_console_command(process, &cmd);
   if (err < 0) goto err;
 
-  err = tt_launch_process(handle, cmd, in, out);
+  err = tt_console_spawn(handle, cmd, in, out);
   if (err < 0) goto err;
 
   free(cmd);
@@ -293,6 +320,8 @@ err:
   if (out) CloseHandle(out);
 
   if (cmd) free(cmd);
+
+  tt_console_destroy(handle);
 
   return err;
 }
