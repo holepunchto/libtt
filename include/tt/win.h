@@ -10,10 +10,10 @@ struct tt_pty_s {
   uv_pipe_t out;
 
   struct {
-    void* handle;
-    void* in;
-    void* out;
-    void* process;
+    void *handle;
+    void *in;
+    void *out;
+    void *process;
     STARTUPINFOEXW info;
   } console;
 
@@ -23,6 +23,7 @@ struct tt_pty_s {
 
   uv_async_t exit;
   long exit_status;
+  int term_signal;
 
   uv_thread_t thread;
 

@@ -1,4 +1,5 @@
 list(APPEND tests
+  kill
   spawn
   spawn-bad-file
   spawn-exit-status

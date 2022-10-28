@@ -14,7 +14,8 @@ static void
 on_exit (tt_pty_t *handle, int64_t exit_status, int term_signal) {
   exit_called = true;
 
-  assert(exit_status == 42);
+  assert(exit_status == 0);
+  assert(term_signal == SIGABRT);
 
   tt_pty_close(handle, NULL);
 }
@@ -32,11 +33,14 @@ main () {
 
   tt_process_options_t process = {
     .file = "node",
-    .args = (char *[]){"node", "test/fixtures/exit.mjs", NULL},
+    .args = (char *[]){"node", "test/fixtures/spin.mjs", NULL},
   };
 
   tt_pty_t pty;
   e = tt_pty_spawn(loop, &pty, &term, &process, on_exit);
+  assert(e == 0);
+
+  e = tt_pty_kill(&pty, SIGABRT);
   assert(e == 0);
 
   uv_run(loop, UV_RUN_DEFAULT);

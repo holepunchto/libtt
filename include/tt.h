@@ -15,7 +15,7 @@ typedef struct tt_process_options_s tt_process_options_t;
 
 typedef void (*tt_pty_read_cb)(tt_pty_t *handle, ssize_t read_len, const uv_buf_t *buf);
 typedef void (*tt_pty_write_cb)(tt_pty_write_t *req, int status);
-typedef void (*tt_pty_exit_cb)(tt_pty_t *handle, int64_t exit_status);
+typedef void (*tt_pty_exit_cb)(tt_pty_t *handle, int64_t exit_status, int term_signal);
 typedef void (*tt_pty_close_cb)(tt_pty_t *handle);
 
 #if defined(_WIN32)
@@ -49,6 +49,9 @@ tt_pty_write (tt_pty_write_t *req, tt_pty_t *handle, const uv_buf_t bufs[], unsi
 
 void
 tt_pty_close (tt_pty_t *handle, tt_pty_close_cb cb);
+
+int
+tt_pty_kill (tt_pty_t *handle, int signum);
 
 uv_pid_t
 tt_pty_get_pid (tt_pty_t *handle);

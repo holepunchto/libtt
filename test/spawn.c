@@ -19,7 +19,7 @@ on_close (tt_pty_t *handle) {
 }
 
 static void
-on_exit (tt_pty_t *handle, int64_t exit_status) {
+on_exit (tt_pty_t *handle, int64_t exit_status, int term_signal) {
   exit_called = true;
 
   assert(exit_status == 0);

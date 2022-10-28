@@ -213,7 +213,7 @@ on_exit (uv_async_t *async) {
 
   tt_console_destroy(handle);
 
-  handle->on_exit(handle, handle->exit_status);
+  handle->on_exit(handle, handle->exit_status, handle->term_signal);
 
   uv_close((uv_handle_t *) &handle->exit, on_close);
 }
@@ -257,6 +257,7 @@ int
 tt_pty_spawn (uv_loop_t *loop, tt_pty_t *handle, const tt_term_options_t *term, const tt_process_options_t *process, tt_pty_exit_cb exit_cb) {
   handle->flags = 0;
   handle->exit_status = 0;
+  handle->term_signal = 0;
   handle->active = 0;
   handle->on_exit = exit_cb;
 
@@ -392,4 +393,11 @@ tt_pty_close (tt_pty_t *handle, tt_pty_close_cb cb) {
   handle->on_close = cb;
 
   uv_close((uv_handle_t *) &handle->in, on_close);
+}
+
+int
+tt_pty_kill (tt_pty_t *handle, int signum) {
+  handle->term_signal = signum;
+
+  return uv_kill(handle->pid, signum);
 }

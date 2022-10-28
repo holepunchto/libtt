@@ -34,7 +34,7 @@ static void
 on_exit (uv_process_t *process, int64_t exit_status, int term_signal) {
   tt_pty_t *handle = (tt_pty_t *) process->data;
 
-  if (handle->on_exit) handle->on_exit(handle, exit_status);
+  if (handle->on_exit) handle->on_exit(handle, exit_status, term_signal);
 
   uv_close((uv_handle_t *) process, on_close);
 }
@@ -156,4 +156,9 @@ tt_pty_close (tt_pty_t *handle, tt_pty_close_cb cb) {
   handle->on_close = cb;
 
   uv_close((uv_handle_t *) &handle->tty, on_close);
+}
+
+int
+tt_pty_kill (tt_pty_t *handle, int signum) {
+  return uv_process_kill(&handle->process, signum);
 }
