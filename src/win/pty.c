@@ -35,8 +35,6 @@ static inline void
 tt_console_destroy (tt_pty_t *pty) {
   if (pty->console.handle) ClosePseudoConsole(pty->console.handle);
 
-  if (pty->console.in) CloseHandle(pty->console.in);
-  if (pty->console.out) CloseHandle(pty->console.out);
   if (pty->console.process) CloseHandle(pty->console.process);
 
   tt_console_info_destroy(pty);
