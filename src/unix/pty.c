@@ -4,8 +4,16 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <util.h>
 #include <uv.h>
+
+// https://www.gnu.org/software/gnulib/manual/html_node/forkpty.html
+#if defined(__APPLE__) || defined(__OpenBSD__) || defined(__NetBSD__)
+#include <util.h>
+#elif defined(__FreeBSD__)
+#include <libutil.h>
+#else
+#include <pty.h>
+#endif
 
 #include "../../include/tt.h"
 
