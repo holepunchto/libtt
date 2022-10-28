@@ -101,6 +101,64 @@ err:
   return uv_translate_sys_error(GetLastError());
 }
 
+static inline int
+tt_to_wstring (const char *str, int len, PWCHAR wstr) {
+  len = MultiByteToWideChar(CP_UTF8, 0, str, -1, wstr, len);
+
+  if (len == 0) return uv_translate_sys_error(GetLastError());
+
+  return len;
+}
+
+static inline int
+tt_prepare_command_line (const tt_process_options_t *process, PWCHAR *pcmd) {
+  const char *file = process->file;
+
+  int len = tt_to_wstring(process->file, 0, NULL);
+  if (len < 0) return len;
+
+  PWCHAR cmd = malloc(len * sizeof(WCHAR));
+
+  int err = tt_to_wstring(process->file, len, cmd);
+  if (err < 0) goto err;
+
+  if (process->args != NULL) {
+    int i = 1, offset = len - 1;
+
+    while (TRUE) {
+      char *arg = process->args[i++];
+
+      if (arg == NULL) break;
+
+      int arg_len = tt_to_wstring(arg, 0, NULL);
+      if (arg_len < 0) {
+        err = arg_len;
+        goto err;
+      }
+
+      cmd[offset++] = L' ';
+
+      len += arg_len + 1;
+
+      cmd = realloc(cmd, len * sizeof(WCHAR));
+
+      int err = tt_to_wstring(arg, arg_len, cmd + offset);
+      if (err < 0) goto err;
+
+      offset += arg_len;
+    }
+  }
+
+  *pcmd = cmd;
+
+  return 0;
+
+err:
+  if (cmd) free(cmd);
+
+  return err;
+}
+
 static void
 on_close (uv_handle_t *uv_handle) {
   tt_pty_t *handle = (tt_pty_t *) uv_handle->data;
@@ -169,64 +227,6 @@ tt_launch_process (tt_pty_t *pty, PWCHAR cmd, HANDLE in, HANDLE out) {
 
 err:
   return uv_translate_sys_error(GetLastError());
-}
-
-static inline int
-tt_to_wstring (const char *str, int len, PWCHAR wstr) {
-  len = MultiByteToWideChar(CP_UTF8, 0, str, -1, wstr, len);
-
-  if (len == 0) return uv_translate_sys_error(GetLastError());
-
-  return len;
-}
-
-static inline int
-tt_prepare_command_line (const tt_process_options_t *process, PWCHAR *pcmd) {
-  const char *file = process->file;
-
-  int len = tt_to_wstring(process->file, 0, NULL);
-  if (len < 0) return len;
-
-  PWCHAR cmd = malloc(len * sizeof(WCHAR));
-
-  int err = tt_to_wstring(process->file, len, cmd);
-  if (err < 0) goto err;
-
-  if (process->args != NULL) {
-    int i = 1, offset = len - 1;
-
-    while (TRUE) {
-      char *arg = process->args[i++];
-
-      if (arg == NULL) break;
-
-      int arg_len = tt_to_wstring(arg, 0, NULL);
-      if (arg_len < 0) {
-        err = arg_len;
-        goto err;
-      }
-
-      cmd[offset++] = L' ';
-
-      len += arg_len + 1;
-
-      cmd = realloc(cmd, len * sizeof(WCHAR));
-
-      int err = tt_to_wstring(arg, arg_len, cmd + offset);
-      if (err < 0) goto err;
-
-      offset += arg_len;
-    }
-  }
-
-  *pcmd = cmd;
-
-  return 0;
-
-err:
-  if (cmd) free(cmd);
-
-  return err;
 }
 
 int
