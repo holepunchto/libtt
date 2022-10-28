@@ -101,23 +101,23 @@ on_read (uv_stream_t *uv_stream, ssize_t read_len, const uv_buf_t *buf) {
   tt_pty_t *handle = (tt_pty_t *) uv_stream;
 
   handle->on_read(handle, read_len, buf);
-
-  if (buf->base) free(buf->base);
 }
 
 static void
 on_alloc (uv_handle_t *uv_handle, size_t suggested_size, uv_buf_t *buf) {
-  buf->base = malloc(suggested_size);
-  buf->len = suggested_size;
+  tt_pty_t *handle = (tt_pty_t *) uv_handle->data;
+
+  handle->on_alloc(handle, suggested_size, buf);
 }
 
 int
-tt_pty_read_start (tt_pty_t *handle, tt_pty_read_cb cb) {
+tt_pty_read_start (tt_pty_t *handle, tt_pty_alloc_cb alloc_cb, tt_pty_read_cb cb) {
   if (handle->flags & TT_PTY_READING) {
     return UV_EALREADY;
   }
 
   handle->flags |= TT_PTY_READING;
+  handle->on_alloc = alloc_cb;
   handle->on_read = cb;
 
   return uv_read_start((uv_stream_t *) &handle->tty, on_alloc, on_read);

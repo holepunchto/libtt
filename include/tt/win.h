@@ -29,6 +29,7 @@ struct tt_pty_s {
 
   int active;
 
+  tt_pty_alloc_cb on_alloc;
   tt_pty_read_cb on_read;
   tt_pty_exit_cb on_exit;
   tt_pty_close_cb on_close;
