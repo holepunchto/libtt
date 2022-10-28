@@ -102,8 +102,19 @@ err:
 }
 
 static void
-on_exit_wait (void *context, BOOLEAN fired) {
-  tt_pty_t *handle = (tt_pty_t *) context;
+on_close (uv_handle_t *uv_handle) {
+  tt_pty_t *handle = (tt_pty_t *) uv_handle->data;
+
+  handle->active--;
+
+  if (handle->active == 0 && handle->on_close) handle->on_close(handle);
+}
+
+static void
+wait_for_exit (void *data) {
+  tt_pty_t *handle = (tt_pty_t *) data;
+
+  WaitForSingleObject(handle->console.process, INFINITE);
 
   uv_async_send(&handle->exit);
 }
@@ -112,15 +123,17 @@ static void
 on_exit (uv_async_t *async) {
   tt_pty_t *handle = (tt_pty_t *) async->data;
 
-  uv_close((uv_handle_t *) &handle->exit, NULL);
-
-  UnregisterWait(handle->console.exit);
+  GetExitCodeProcess(handle->console.process, &handle->exit_status);
 
   ClosePseudoConsole(handle->console.handle);
 
   CloseHandle(handle->console.in);
   CloseHandle(handle->console.out);
   CloseHandle(handle->console.process);
+
+  handle->on_exit(handle, handle->exit_status);
+
+  uv_close((uv_handle_t *) &handle->exit, on_close);
 }
 
 static inline int
@@ -151,15 +164,6 @@ tt_launch_process (tt_pty_t *pty, PWCHAR cmd, HANDLE in, HANDLE out) {
 
   pty->pid = info.dwProcessId;
   pty->console.process = info.hProcess;
-
-  RegisterWaitForSingleObject(
-    &pty->console.exit,
-    pty->console.process,
-    on_exit_wait,
-    (void *) pty,
-    INFINITE,
-    WT_EXECUTEONLYONCE
-  );
 
   return 0;
 
@@ -226,7 +230,12 @@ err:
 }
 
 int
-tt_pty_spawn (uv_loop_t *loop, tt_pty_t *handle, const tt_term_options_t *term, const tt_process_options_t *process) {
+tt_pty_spawn (uv_loop_t *loop, tt_pty_t *handle, const tt_term_options_t *term, const tt_process_options_t *process, tt_pty_exit_cb exit_cb) {
+  handle->flags = 0;
+  handle->exit_status = 0;
+  handle->active = 0;
+  handle->on_exit = exit_cb;
+
   int err = 0;
 
   COORD size = {
@@ -252,23 +261,29 @@ tt_pty_spawn (uv_loop_t *loop, tt_pty_t *handle, const tt_term_options_t *term, 
 
   free(cmd);
 
-  handle->exit.data = handle;
   handle->in.data = handle;
   handle->out.data = handle;
+  handle->exit.data = handle;
 
   err = uv_async_init(loop, &handle->exit, on_exit);
   assert(err == 0);
+  handle->active++;
 
   err = uv_pipe_init(loop, &handle->in, 0);
   assert(err == 0);
+  handle->active++;
 
   err = uv_pipe_open(&handle->in, uv_open_osfhandle(handle->console.in));
   assert(err == 0);
 
   err = uv_pipe_init(loop, &handle->out, 0);
   assert(err == 0);
+  handle->active++;
 
   err = uv_pipe_open(&handle->out, uv_open_osfhandle(handle->console.out));
+  assert(err == 0);
+
+  err = uv_thread_create(&handle->thread, wait_for_exit, (void *) handle);
   assert(err == 0);
 
   return 0;
@@ -289,6 +304,10 @@ on_read (uv_stream_t *uv_stream, ssize_t read_len, const uv_buf_t *buf) {
   handle->on_read(handle, read_len, buf);
 
   free(buf->base);
+
+  if (read_len == UV_EOF) {
+    uv_close((uv_handle_t *) &handle->out, on_close);
+  }
 }
 
 static void
@@ -335,4 +354,11 @@ tt_pty_write (tt_pty_write_t *req, tt_pty_t *handle, const uv_buf_t bufs[], unsi
   req->req.data = (void *) req;
 
   return uv_write(&req->req, (uv_stream_t *) &handle->in, bufs, bufs_len, on_write);
+}
+
+void
+tt_pty_close (tt_pty_t *handle, tt_pty_close_cb cb) {
+  handle->on_close = cb;
+
+  uv_close((uv_handle_t *) &handle->in, on_close);
 }

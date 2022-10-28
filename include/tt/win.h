@@ -14,7 +14,6 @@ struct tt_pty_s {
     void* in;
     void* out;
     void* process;
-    void* exit;
     STARTUPINFOEXW info;
   } console;
 
@@ -23,8 +22,15 @@ struct tt_pty_s {
   int flags;
 
   uv_async_t exit;
+  long exit_status;
+
+  uv_thread_t thread;
+
+  int active;
 
   tt_pty_read_cb on_read;
+  tt_pty_exit_cb on_exit;
+  tt_pty_close_cb on_close;
 };
 
 struct tt_pty_write_s {
