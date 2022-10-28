@@ -19,7 +19,7 @@ on_close (tt_pty_t *handle) {
 }
 
 static void
-on_exit (tt_pty_t *handle, int64_t exit_status, int term_signal) {
+on_process_exit (tt_pty_t *handle, int64_t exit_status, int term_signal) {
   exit_called = true;
 
   assert(exit_status == 0);
@@ -63,7 +63,7 @@ main () {
   };
 
   tt_pty_t pty;
-  e = tt_pty_spawn(loop, &pty, &term, &process, on_exit);
+  e = tt_pty_spawn(loop, &pty, &term, &process, on_process_exit);
   assert(e == 0);
 
   e = tt_pty_read_start(&pty, on_alloc, on_read);

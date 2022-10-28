@@ -11,7 +11,7 @@ uv_loop_t *loop;
 bool exit_called = false;
 
 static void
-on_exit (tt_pty_t *handle, int64_t exit_status, int term_signal) {
+on_process_exit (tt_pty_t *handle, int64_t exit_status, int term_signal) {
   exit_called = true;
 
 #ifdef _WIN32
@@ -42,7 +42,7 @@ main () {
   };
 
   tt_pty_t pty;
-  e = tt_pty_spawn(loop, &pty, &term, &process, on_exit);
+  e = tt_pty_spawn(loop, &pty, &term, &process, on_process_exit);
   assert(e == 0);
 
   e = tt_pty_kill(&pty, SIGTERM);

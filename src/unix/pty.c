@@ -31,7 +31,7 @@ on_close (uv_handle_t *uv_handle) {
 }
 
 static void
-on_exit (uv_process_t *process, int64_t exit_status, int term_signal) {
+on_process_exit (uv_process_t *process, int64_t exit_status, int term_signal) {
   tt_pty_t *handle = (tt_pty_t *) process->data;
 
   if (handle->on_exit) handle->on_exit(handle, exit_status, term_signal);
@@ -67,7 +67,7 @@ tt_pty_spawn (uv_loop_t *loop, tt_pty_t *handle, const tt_term_options_t *term, 
   handle->active++;
 
   uv_process_options_t options = {
-    .exit_cb = on_exit,
+    .exit_cb = on_process_exit,
     .file = process->file,
     .args = process->args,
     .cwd = process->cwd,

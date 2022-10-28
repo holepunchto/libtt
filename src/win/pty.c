@@ -206,7 +206,7 @@ wait_for_exit (void *data) {
 }
 
 static void
-on_exit (uv_async_t *async) {
+on_process_exit (uv_async_t *async) {
   tt_pty_t *handle = (tt_pty_t *) async->data;
 
   GetExitCodeProcess(handle->console.process, &handle->exit_status);
@@ -293,7 +293,7 @@ tt_pty_spawn (uv_loop_t *loop, tt_pty_t *handle, const tt_term_options_t *term, 
   handle->out.data = handle;
   handle->exit.data = handle;
 
-  err = uv_async_init(loop, &handle->exit, on_exit);
+  err = uv_async_init(loop, &handle->exit, on_process_exit);
   assert(err == 0);
   handle->active++;
 
