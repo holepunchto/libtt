@@ -31,80 +31,75 @@ on_close (uv_handle_t *uv_handle) {
 }
 
 static void
-wait_for_exit (void *data) {
-  tt_pty_t *handle = (tt_pty_t *) data;
+on_exit (uv_process_t *process, int64_t exit_status, int term_signal) {
+  tt_pty_t *handle = (tt_pty_t *) process->data;
 
-  int status;
+  if (handle->on_exit) handle->on_exit(handle, exit_status);
 
-  while (true) {
-    int pid = waitpid(handle->pid, &status, 0);
-
-    if (pid == handle->pid) break;
-  }
-
-  if (WIFEXITED(status)) {
-    handle->exit_status = WEXITSTATUS(status);
-  }
-
-  uv_async_send(&handle->exit);
-}
-
-static void
-on_exit (uv_async_t *async) {
-  tt_pty_t *handle = (tt_pty_t *) async->data;
-
-  handle->on_exit(handle, handle->exit_status);
-
-  uv_close((uv_handle_t *) async, on_close);
+  uv_close((uv_handle_t *) process, on_close);
 }
 
 int
 tt_pty_spawn (uv_loop_t *loop, tt_pty_t *handle, const tt_term_options_t *term, const tt_process_options_t *process, tt_pty_exit_cb exit_cb) {
   handle->flags = 0;
-  handle->exit_status = 0;
   handle->active = 0;
   handle->on_exit = exit_cb;
 
-  int fd, err;
+  int primary, replica, err;
 
   struct winsize size = {
-    .ws_col = term->width,
-    .ws_row = term->height,
+    .ws_col = term ? term->width : 80,
+    .ws_row = term ? term->height : 60,
   };
 
-  pid_t pid = forkpty(&fd, NULL, NULL, &size);
+  int res = openpty(&primary, &replica, NULL, NULL, &size);
 
-  switch (pid) {
-  case -1:
-    return uv_translate_sys_error(errno);
+  if (res < 0) return uv_translate_sys_error(errno);
 
-  case 0: {
-    if (process->cwd != NULL) chdir(process->cwd);
+  uv_stdio_container_t stdio[3] = {
+    {
+      .flags = UV_INHERIT_FD,
+      .data.fd = replica,
+    },
+    {
+      .flags = UV_INHERIT_FD,
+      .data.fd = replica,
+    },
+    {
+      .flags = UV_INHERIT_FD,
+      .data.fd = replica,
+    },
+  };
 
-    if (execvp(process->file, process->args)) {
-      exit(1);
-    }
+  uv_process_options_t options = {
+    .exit_cb = on_exit,
+    .file = process->file,
+    .args = process->args,
+    .cwd = process->cwd,
+    .stdio = stdio,
+    .stdio_count = 3,
+  };
 
-    break;
+  err = uv_spawn(loop, &handle->process, &options);
+
+  close(replica);
+
+  if (err < 0) {
+    close(primary);
+
+    return err;
   }
 
-  default:
-    handle->fd = fd;
-    handle->pid = pid;
-    handle->tty.data = (void *) handle;
-    handle->exit.data = (void *) handle;
+  handle->active++;
 
-    err = uv_tty_init(loop, &handle->tty, fd, 0);
-    assert(err == 0);
-    handle->active++;
+  handle->pid = handle->process.pid;
 
-    err = uv_async_init(loop, &handle->exit, on_exit);
-    assert(err == 0);
-    handle->active++;
+  handle->tty.data = (void *) handle;
+  handle->process.data = (void *) handle;
 
-    err = uv_thread_create(&handle->thread, wait_for_exit, (void *) handle);
-    assert(err == 0);
-  }
+  err = uv_tty_init(loop, &handle->tty, primary, 0);
+  assert(err == 0);
+  handle->active++;
 
   return 0;
 }
@@ -115,7 +110,7 @@ on_read (uv_stream_t *uv_stream, ssize_t read_len, const uv_buf_t *buf) {
 
   handle->on_read(handle, read_len, buf);
 
-  free(buf->base);
+  if (buf->base) free(buf->base);
 }
 
 static void

@@ -8,16 +8,11 @@
 
 struct tt_pty_s {
   uv_tty_t tty;
+  uv_process_t process;
 
-  int fd;
   uv_pid_t pid;
 
   int flags;
-
-  uv_async_t exit;
-  int exit_status;
-
-  uv_thread_t thread;
 
   int active;
 

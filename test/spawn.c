@@ -34,7 +34,7 @@ on_read (tt_pty_t *pty, ssize_t read_len, const uv_buf_t *buf) {
   if (read_len == UV_EOF) eof_reached = true;
   else {
     assert(read_len > 0);
-    printf("%.*s", (int) buf->len, buf->base);
+    printf("%.*s", (int) read_len, buf->base);
   }
 }
 
