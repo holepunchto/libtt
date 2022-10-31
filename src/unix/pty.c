@@ -168,6 +168,10 @@ tt_pty_resize (tt_pty_t *handle, int width, int height) {
 
   if (res < 0) return uv_translate_sys_error(errno);
 
+  res = kill(handle->pid, SIGWINCH);
+
+  if (res < 0) return uv_translate_sys_error(errno);
+
   return 0;
 }
 
