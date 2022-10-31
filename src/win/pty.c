@@ -267,8 +267,8 @@ tt_pty_spawn (uv_loop_t *loop, tt_pty_t *handle, const tt_term_options_t *term, 
   if (err < 0) goto err;
 
   COORD size = {
-    .X = term->width,
-    .Y = term->height,
+    .X = term ? term->width : 80,
+    .Y = term ? term->height : 60,
   };
 
   HANDLE in = NULL, out = NULL;
