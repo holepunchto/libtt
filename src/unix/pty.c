@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/ioctl.h>
 #include <unistd.h>
 #include <uv.h>
 
@@ -81,6 +82,7 @@ tt_pty_spawn (uv_loop_t *loop, tt_pty_t *handle, const tt_term_options_t *term, 
 
   close(replica);
 
+  handle->fd = primary;
   handle->pid = handle->process.pid;
 
   err = uv_tty_init(loop, &handle->tty, primary, 0);
@@ -151,6 +153,24 @@ tt_pty_write (tt_pty_write_t *req, tt_pty_t *handle, const uv_buf_t bufs[], unsi
   return uv_write(&req->req, (uv_stream_t *) &handle->tty, bufs, bufs_len, on_write);
 }
 
+int
+tt_pty_resize (tt_pty_t *handle, int width, int height) {
+  struct winsize size = {
+    .ws_col = width,
+    .ws_row = height,
+  };
+
+  int res;
+
+  do {
+    res = ioctl(handle->fd, TIOCSWINSZ, &size);
+  } while (res == -1 && errno == EINTR);
+
+  if (res < 0) return uv_translate_sys_error(errno);
+
+  return 0;
+}
+
 void
 tt_pty_close (tt_pty_t *handle, tt_pty_close_cb cb) {
   handle->on_close = cb;
@@ -161,4 +181,9 @@ tt_pty_close (tt_pty_t *handle, tt_pty_close_cb cb) {
 int
 tt_pty_kill (tt_pty_t *handle, int signum) {
   return uv_process_kill(&handle->process, signum);
+}
+
+int
+tt_pty_get_size (tt_pty_t *handle, int *width, int *height) {
+  return uv_tty_get_winsize(&handle->tty, width, height);
 }
