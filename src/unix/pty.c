@@ -62,10 +62,6 @@ tt_pty_spawn (uv_loop_t *loop, tt_pty_t *handle, const tt_term_options_t *term, 
     goto err;
   };
 
-  err = uv_tty_init(loop, &handle->tty, primary, 0);
-  if (err < 0) goto err;
-  handle->active++;
-
   uv_process_options_t options = {
     .exit_cb = on_process_exit,
     .file = process->file,
@@ -86,6 +82,10 @@ tt_pty_spawn (uv_loop_t *loop, tt_pty_t *handle, const tt_term_options_t *term, 
   close(replica);
 
   handle->pid = handle->process.pid;
+
+  err = uv_tty_init(loop, &handle->tty, primary, 0);
+  assert(err == 0);
+  handle->active++;
 
   return 0;
 
