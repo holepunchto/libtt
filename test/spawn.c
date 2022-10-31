@@ -11,7 +11,6 @@ uv_loop_t *loop;
 bool close_called = false;
 bool exit_called = false;
 bool read_called = false;
-bool eof_reached = false;
 
 static void
 on_close (tt_pty_t *handle) {
@@ -31,11 +30,8 @@ static void
 on_read (tt_pty_t *pty, ssize_t read_len, const uv_buf_t *buf) {
   read_called = true;
 
-  if (read_len == UV_EOF) eof_reached = true;
-  else {
-    assert(read_len > 0);
-    printf("%.*s", (int) read_len, buf->base);
-  }
+  assert(read_len > 0);
+  printf("%.*s", (int) read_len, buf->base);
 
   if (buf->base) free(buf->base);
 }
@@ -74,7 +70,6 @@ main () {
   assert(close_called);
   assert(exit_called);
   assert(read_called);
-  assert(eof_reached);
 
   return 0;
 }

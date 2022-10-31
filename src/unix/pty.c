@@ -28,7 +28,12 @@ on_close (uv_handle_t *uv_handle) {
 
   handle->active--;
 
-  if (handle->active == 0 && handle->on_close) handle->on_close(handle);
+  if (handle->active == 0) {
+    close(handle->primary);
+    close(handle->replica);
+
+    if (handle->on_close) handle->on_close(handle);
+  }
 }
 
 static void
@@ -81,9 +86,8 @@ tt_pty_spawn (uv_loop_t *loop, tt_pty_t *handle, const tt_term_options_t *term, 
   if (err < 0) goto err;
   handle->active++;
 
-  close(replica);
-
-  handle->fd = primary;
+  handle->primary = primary;
+  handle->replica = replica;
   handle->pid = handle->process.pid;
 
   err = uv_tty_init(loop, &handle->tty, primary, 0);
@@ -164,7 +168,7 @@ tt_pty_resize (tt_pty_t *handle, int width, int height) {
   int res;
 
   do {
-    res = ioctl(handle->fd, TIOCSWINSZ, &size);
+    res = ioctl(handle->primary, TIOCSWINSZ, &size);
   } while (res == -1 && errno == EINTR);
 
   if (res < 0) return uv_translate_sys_error(errno);

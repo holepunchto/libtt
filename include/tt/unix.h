@@ -10,7 +10,8 @@ struct tt_pty_s {
   uv_tty_t tty;
   uv_process_t process;
 
-  int fd;
+  int primary;
+  int replica;
   uv_pid_t pid;
 
   int flags;
