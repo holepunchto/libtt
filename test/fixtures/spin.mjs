@@ -1,1 +1,3 @@
-while (true) {}
+while (true) {
+  //
+}
