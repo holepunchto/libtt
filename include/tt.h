@@ -33,6 +33,7 @@ struct tt_term_options_s {
 struct tt_process_options_s {
   const char *file;
   char **args;
+  char **env;
   const char *cwd;
 };
 

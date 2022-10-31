@@ -67,6 +67,7 @@ tt_pty_spawn (uv_loop_t *loop, tt_pty_t *handle, const tt_term_options_t *term, 
     .exit_cb = on_process_exit,
     .file = process->file,
     .args = process->args,
+    .env = process->env,
     .cwd = process->cwd,
     .stdio = (uv_stdio_container_t[]){
       {.flags = UV_INHERIT_FD, .data.fd = replica},
