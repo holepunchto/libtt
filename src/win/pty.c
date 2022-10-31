@@ -261,6 +261,10 @@ tt_pty_spawn (uv_loop_t *loop, tt_pty_t *handle, const tt_term_options_t *term, 
   handle->active = 0;
   handle->on_exit = exit_cb;
 
+  handle->in.data = handle;
+  handle->out.data = handle;
+  handle->exit.data = handle;
+
   int err;
 
   err = tt_console_init(handle);
@@ -288,10 +292,6 @@ tt_pty_spawn (uv_loop_t *loop, tt_pty_t *handle, const tt_term_options_t *term, 
   if (err < 0) goto err;
 
   free(cmd);
-
-  handle->in.data = handle;
-  handle->out.data = handle;
-  handle->exit.data = handle;
 
   err = uv_async_init(loop, &handle->exit, on_process_exit);
   assert(err == 0);
