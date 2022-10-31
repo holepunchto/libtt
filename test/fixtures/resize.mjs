@@ -1,5 +1,11 @@
-process.stdin.resume()
+import { once } from 'events'
 
-process.stdout.on('resize', () => {
-  console.log(`${process.stdout.columns}x${process.stdout.rows}`)
-})
+const { stdin, stdout } = process
+
+stdin.resume()
+
+await once(stdout, 'resize')
+
+stdout.write(`${stdout.columns}x${stdout.rows}`)
+
+stdin.pause()

@@ -1,1 +1,3 @@
-console.log('hello world')
+const { stdout } = process
+
+stdout.write('hello world')
