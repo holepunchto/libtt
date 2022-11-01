@@ -309,6 +309,7 @@ tt_pty_spawn (uv_loop_t *loop, tt_pty_t *handle, const tt_term_options_t *term, 
 
   err = uv_pipe_open(&handle->in, uv_open_osfhandle(handle->console.in));
   assert(err == 0);
+  handle->console.in = NULL;
 
   err = uv_pipe_init(loop, &handle->out, 0);
   assert(err == 0);
@@ -316,6 +317,7 @@ tt_pty_spawn (uv_loop_t *loop, tt_pty_t *handle, const tt_term_options_t *term, 
 
   err = uv_pipe_open(&handle->out, uv_open_osfhandle(handle->console.out));
   assert(err == 0);
+  handle->console.out = NULL;
 
   err = uv_thread_create(&handle->thread, wait_for_exit, (void *) handle);
   assert(err == 0);
