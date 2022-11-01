@@ -56,9 +56,12 @@ tt_pty_spawn (uv_loop_t *loop, tt_pty_t *handle, const tt_term_options_t *term, 
 
   int primary = -1, replica = -1, err;
 
+  int width = term ? term->width : 80;
+  int height = term ? term->height : 60;
+
   struct winsize size = {
-    .ws_col = term ? term->width : 80,
-    .ws_row = term ? term->height : 60,
+    .ws_col = width,
+    .ws_row = height,
   };
 
   int res = openpty(&primary, &replica, NULL, NULL, &size);
@@ -86,6 +89,8 @@ tt_pty_spawn (uv_loop_t *loop, tt_pty_t *handle, const tt_term_options_t *term, 
   if (err < 0) goto err;
   handle->active++;
 
+  handle->width = width;
+  handle->height = height;
   handle->primary = primary;
   handle->replica = replica;
   handle->pid = handle->process.pid;
@@ -177,6 +182,9 @@ tt_pty_resize (tt_pty_t *handle, int width, int height) {
 
   if (res < 0) return uv_translate_sys_error(errno);
 
+  handle->width = width;
+  handle->height = height;
+
   return 0;
 }
 
@@ -190,9 +198,4 @@ tt_pty_close (tt_pty_t *handle, tt_pty_close_cb cb) {
 int
 tt_pty_kill (tt_pty_t *handle, int signum) {
   return uv_process_kill(&handle->process, signum);
-}
-
-int
-tt_pty_get_size (tt_pty_t *handle, int *width, int *height) {
-  return uv_tty_get_winsize(&handle->tty, width, height);
 }

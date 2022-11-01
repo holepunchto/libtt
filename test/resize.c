@@ -43,6 +43,9 @@ main () {
   assert(width == 120);
   assert(height == 90);
 
+  e = tt_pty_kill(&pty, SIGINT);
+  assert(e == 0);
+
   uv_run(loop, UV_RUN_DEFAULT);
 
   return 0;

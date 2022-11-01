@@ -193,7 +193,11 @@ on_close (uv_handle_t *uv_handle) {
 
   handle->active--;
 
-  if (handle->active == 0 && handle->on_close) handle->on_close(handle);
+  if (handle->active == 0) {
+    tt_console_destroy(handle);
+
+    if (handle->on_close) handle->on_close(handle);
+  }
 }
 
 static void
@@ -211,8 +215,6 @@ on_process_exit (uv_async_t *async) {
 
   GetExitCodeProcess(handle->console.process, &handle->exit_status);
 
-  tt_console_destroy(handle);
-
   handle->on_exit(handle, handle->exit_status, handle->term_signal);
 
   uv_close((uv_handle_t *) &handle->exit, on_close);
@@ -223,9 +225,7 @@ tt_console_spawn (tt_pty_t *pty, PWCHAR cmd, HANDLE in, HANDLE out) {
   PROCESS_INFORMATION info;
   memset(&info, 0, sizeof(info));
 
-  BOOL success;
-
-  success = CreateProcessW(
+  BOOL success = CreateProcessW(
     NULL,
     cmd,
     NULL,
@@ -270,9 +270,12 @@ tt_pty_spawn (uv_loop_t *loop, tt_pty_t *handle, const tt_term_options_t *term, 
   err = tt_console_init(handle);
   if (err < 0) goto err;
 
+  int width = term ? term->width : 80;
+  int height = term ? term->height : 60;
+
   COORD size = {
-    .X = term ? term->width : 80,
-    .Y = term ? term->height : 60,
+    .X = width,
+    .Y = height,
   };
 
   HANDLE in = NULL, out = NULL;
@@ -293,6 +296,9 @@ tt_pty_spawn (uv_loop_t *loop, tt_pty_t *handle, const tt_term_options_t *term, 
 
   free(cmd);
 
+  handle->width = width;
+  handle->height = height;
+
   err = uv_async_init(loop, &handle->exit, on_process_exit);
   assert(err == 0);
   handle->active++;
@@ -303,7 +309,6 @@ tt_pty_spawn (uv_loop_t *loop, tt_pty_t *handle, const tt_term_options_t *term, 
 
   err = uv_pipe_open(&handle->in, uv_open_osfhandle(handle->console.in));
   assert(err == 0);
-  handle->console.in = NULL;
 
   err = uv_pipe_init(loop, &handle->out, 0);
   assert(err == 0);
@@ -311,7 +316,6 @@ tt_pty_spawn (uv_loop_t *loop, tt_pty_t *handle, const tt_term_options_t *term, 
 
   err = uv_pipe_open(&handle->out, uv_open_osfhandle(handle->console.out));
   assert(err == 0);
-  handle->console.out = NULL;
 
   err = uv_thread_create(&handle->thread, wait_for_exit, (void *) handle);
   assert(err == 0);
@@ -334,10 +338,6 @@ on_read (uv_stream_t *uv_stream, ssize_t read_len, const uv_buf_t *buf) {
   tt_pty_t *handle = (tt_pty_t *) uv_stream->data;
 
   handle->on_read(handle, read_len, buf);
-
-  if (read_len == UV_EOF) {
-    uv_close((uv_handle_t *) &handle->out, on_close);
-  }
 }
 
 static void
@@ -388,11 +388,35 @@ tt_pty_write (tt_pty_write_t *req, tt_pty_t *handle, const uv_buf_t bufs[], unsi
   return uv_write(&req->req, (uv_stream_t *) &handle->in, bufs, bufs_len, on_write);
 }
 
+int
+tt_pty_resize (tt_pty_t *handle, int width, int height) {
+  COORD size = {
+    .X = width,
+    .Y = height,
+  };
+
+  HRESULT res = ResizePseudoConsole(handle->console.handle, size);
+
+  if (res < 0) {
+    SetLastError(res);
+    goto err;
+  }
+
+  handle->width = width;
+  handle->height = height;
+
+  return 0;
+
+err:
+  return uv_translate_sys_error(GetLastError());
+}
+
 void
 tt_pty_close (tt_pty_t *handle, tt_pty_close_cb cb) {
   handle->on_close = cb;
 
   uv_close((uv_handle_t *) &handle->in, on_close);
+  uv_close((uv_handle_t *) &handle->out, on_close);
 }
 
 int

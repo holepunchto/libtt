@@ -16,6 +16,9 @@ struct tt_pty_s {
 
   int flags;
 
+  int width;
+  int height;
+
   int active;
 
   tt_pty_alloc_cb on_alloc;

@@ -27,6 +27,9 @@ struct tt_pty_s {
 
   uv_thread_t thread;
 
+  int width;
+  int height;
+
   int active;
 
   tt_pty_alloc_cb on_alloc;
