@@ -100,6 +100,9 @@ tt_pty_spawn (uv_loop_t *loop, tt_pty_t *handle, const tt_term_options_t *term, 
   assert(err == 0);
   handle->active++;
 
+  err = uv_tty_set_mode(&handle->tty, UV_TTY_MODE_RAW);
+  assert(err == 0);
+
   return 0;
 
 err:
