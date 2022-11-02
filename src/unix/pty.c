@@ -77,12 +77,13 @@ tt_pty_spawn (uv_loop_t *loop, tt_pty_t *handle, const tt_term_options_t *term, 
     .args = process->args,
     .env = process->env,
     .cwd = process->cwd,
+    .flags = UV_PROCESS_DETACHED,
+    .stdio_count = 3,
     .stdio = (uv_stdio_container_t[]){
       {.flags = UV_INHERIT_FD, .data.fd = replica},
       {.flags = UV_INHERIT_FD, .data.fd = replica},
       {.flags = UV_INHERIT_FD, .data.fd = replica},
     },
-    .stdio_count = 3,
   };
 
   err = uv_spawn(loop, &handle->process, &options);
