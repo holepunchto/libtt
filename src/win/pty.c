@@ -13,6 +13,15 @@ typedef enum {
 } tt_pty_flags;
 
 static inline int
+tt_to_wstring (const char *str, int len, PWCHAR wstr) {
+  len = MultiByteToWideChar(CP_UTF8, 0, str, -1, wstr, len);
+
+  if (len == 0) return uv_translate_sys_error(GetLastError());
+
+  return len;
+}
+
+static inline int
 tt_console_init (tt_pty_t *pty) {
   pty->console.handle = NULL;
   pty->console.in = NULL;
@@ -131,24 +140,22 @@ err:
 }
 
 static inline int
-tt_to_wstring (const char *str, int len, PWCHAR wstr) {
-  len = MultiByteToWideChar(CP_UTF8, 0, str, -1, wstr, len);
-
-  if (len == 0) return uv_translate_sys_error(GetLastError());
-
-  return len;
-}
-
-static inline int
 tt_prepare_console_command (const tt_process_options_t *process, PWCHAR *pcmd) {
+  PWCHAR cmd = NULL;
+
   const char *file = process->file;
 
+  int err;
+
   int len = tt_to_wstring(process->file, 0, NULL);
-  if (len < 0) return len;
+  if (len < 0) {
+    err = len;
+    goto err;
+  }
 
-  PWCHAR cmd = malloc(len * sizeof(WCHAR));
+  cmd = malloc(len * sizeof(WCHAR));
 
-  int err = tt_to_wstring(process->file, len, cmd);
+  err = tt_to_wstring(process->file, len, cmd);
   if (err < 0) goto err;
 
   if (process->args != NULL) {
@@ -171,7 +178,7 @@ tt_prepare_console_command (const tt_process_options_t *process, PWCHAR *pcmd) {
 
       cmd = realloc(cmd, len * sizeof(WCHAR));
 
-      int err = tt_to_wstring(arg, arg_len, cmd + offset);
+      err = tt_to_wstring(arg, arg_len, cmd + offset);
       if (err < 0) goto err;
 
       offset += arg_len;
@@ -184,6 +191,35 @@ tt_prepare_console_command (const tt_process_options_t *process, PWCHAR *pcmd) {
 
 err:
   if (cmd) free(cmd);
+
+  return err;
+}
+
+static inline int
+tt_prepare_console_directory (const tt_process_options_t *process, PWCHAR *pcmd) {
+  if (process->cwd == NULL) return 0;
+
+  PWCHAR cwd = NULL;
+
+  int err;
+
+  int len = tt_to_wstring(process->cwd, 0, NULL);
+  if (len < 0) {
+    err = len;
+    goto err;
+  }
+
+  cwd = malloc(len * sizeof(WCHAR));
+
+  err = tt_to_wstring(process->cwd, len, cwd);
+  if (err < 0) goto err;
+
+  *pcmd = cwd;
+
+  return 0;
+
+err:
+  if (cwd) free(cwd);
 
   return err;
 }
@@ -222,7 +258,7 @@ on_process_exit (uv_async_t *async) {
 }
 
 static inline int
-tt_console_spawn (tt_pty_t *pty, PWCHAR cmd, HANDLE in, HANDLE out) {
+tt_console_spawn (tt_pty_t *pty, PWCHAR cmd, PWCHAR cwd, HANDLE in, HANDLE out) {
   PROCESS_INFORMATION info;
   memset(&info, 0, sizeof(info));
 
@@ -234,7 +270,7 @@ tt_console_spawn (tt_pty_t *pty, PWCHAR cmd, HANDLE in, HANDLE out) {
     FALSE,
     EXTENDED_STARTUPINFO_PRESENT,
     NULL,
-    NULL,
+    cwd,
     &pty->console.info.StartupInfo,
     &info
   );
@@ -287,15 +323,19 @@ tt_pty_spawn (uv_loop_t *loop, tt_pty_t *handle, const tt_term_options_t *term, 
   err = tt_prepare_console_info(handle);
   if (err < 0) goto err;
 
-  PWCHAR cmd = NULL;
+  PWCHAR cmd = NULL, cwd = NULL;
 
   err = tt_prepare_console_command(process, &cmd);
   if (err < 0) goto err;
 
-  err = tt_console_spawn(handle, cmd, in, out);
+  err = tt_prepare_console_directory(process, &cwd);
+  if (err < 0) goto err;
+
+  err = tt_console_spawn(handle, cmd, cwd, in, out);
   if (err < 0) goto err;
 
   free(cmd);
+  free(cwd);
 
   handle->width = width;
   handle->height = height;
@@ -330,6 +370,7 @@ err:
   if (out) CloseHandle(out);
 
   if (cmd) free(cmd);
+  if (cwd) free(cwd);
 
   tt_console_destroy(handle);
 
