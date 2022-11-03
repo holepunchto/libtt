@@ -2,6 +2,7 @@
 #include <uv.h>
 
 #include "../../include/tt.h"
+#include "console.h"
 
 #ifndef PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE
 #define PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE 0x00020016
