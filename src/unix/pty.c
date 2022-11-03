@@ -84,6 +84,8 @@ tt_pty_spawn (uv_loop_t *loop, tt_pty_t *handle, const tt_term_options_t *term, 
       {.flags = UV_INHERIT_FD, .data.fd = replica},
       {.flags = UV_INHERIT_FD, .data.fd = replica},
     },
+    .uid = 0,
+    .gid = 0,
   };
 
   err = uv_spawn(loop, &handle->process, &options);
