@@ -196,6 +196,47 @@ err:
 }
 
 static inline int
+tt_prepare_console_environment (const tt_process_options_t *process, PWCHAR *penv) {
+  if (process->env == NULL) return 0;
+
+  PWCHAR env = NULL;
+
+  int err, len = 1, i = 0, offset = 0;
+
+  while (TRUE) {
+    char *pair = process->env[i++];
+
+    if (pair == NULL) break;
+
+    int pair_len = tt_to_wstring(pair, 0, NULL);
+    if (pair_len < 0) {
+      err = pair_len;
+      goto err;
+    }
+
+    len += pair_len;
+
+    env = realloc(env, len * sizeof(WCHAR));
+
+    err = tt_to_wstring(pair, pair_len, env + offset);
+    if (err < 0) goto err;
+
+    offset += pair_len;
+  }
+
+  env[offset] = NULL;
+
+  *penv = env;
+
+  return 0;
+
+err:
+  if (env) free(env);
+
+  return err;
+}
+
+static inline int
 tt_prepare_console_directory (const tt_process_options_t *process, PWCHAR *pcmd) {
   if (process->cwd == NULL) return 0;
 
@@ -258,7 +299,7 @@ on_process_exit (uv_async_t *async) {
 }
 
 static inline int
-tt_console_spawn (tt_pty_t *pty, PWCHAR cmd, PWCHAR cwd, HANDLE in, HANDLE out) {
+tt_console_spawn (tt_pty_t *pty, PWCHAR cmd, PWCHAR env, PWCHAR cwd, HANDLE in, HANDLE out) {
   PROCESS_INFORMATION info;
   memset(&info, 0, sizeof(info));
 
@@ -268,8 +309,8 @@ tt_console_spawn (tt_pty_t *pty, PWCHAR cmd, PWCHAR cwd, HANDLE in, HANDLE out) 
     NULL,
     NULL,
     FALSE,
-    EXTENDED_STARTUPINFO_PRESENT,
-    NULL,
+    EXTENDED_STARTUPINFO_PRESENT | CREATE_UNICODE_ENVIRONMENT,
+    env,
     cwd,
     &pty->console.info.StartupInfo,
     &info
@@ -323,18 +364,22 @@ tt_pty_spawn (uv_loop_t *loop, tt_pty_t *handle, const tt_term_options_t *term, 
   err = tt_prepare_console_info(handle);
   if (err < 0) goto err;
 
-  PWCHAR cmd = NULL, cwd = NULL;
+  PWCHAR cmd = NULL, env = NULL, cwd = NULL;
 
   err = tt_prepare_console_command(process, &cmd);
+  if (err < 0) goto err;
+
+  err = tt_prepare_console_environment(process, &env);
   if (err < 0) goto err;
 
   err = tt_prepare_console_directory(process, &cwd);
   if (err < 0) goto err;
 
-  err = tt_console_spawn(handle, cmd, cwd, in, out);
+  err = tt_console_spawn(handle, cmd, env, cwd, in, out);
   if (err < 0) goto err;
 
   free(cmd);
+  free(env);
   free(cwd);
 
   handle->width = width;
@@ -370,6 +415,7 @@ err:
   if (out) CloseHandle(out);
 
   if (cmd) free(cmd);
+  if (env) free(env);
   if (cwd) free(cwd);
 
   tt_console_destroy(handle);
