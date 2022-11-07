@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.22)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
-if (WIN32)
+if(WIN32)
   set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 endif()
 
@@ -64,6 +64,14 @@ target_link_libraries(
     uv
 )
 
+if(UNIX)
+  target_link_libraries(
+    tt_shared
+    PUBLIC
+      -lutil
+  )
+endif()
+
 add_library(tt_static STATIC $<TARGET_OBJECTS:tt>)
 
 set_target_properties(
@@ -77,6 +85,14 @@ target_link_libraries(
   PUBLIC
     uv
 )
+
+if(UNIX)
+  target_link_libraries(
+    tt_static
+    PUBLIC
+      -lutil
+  )
+endif()
 
 install(TARGETS tt_shared tt_static)
 
