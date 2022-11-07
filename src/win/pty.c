@@ -99,7 +99,7 @@ tt_prepare_console_info (tt_pty_t *pty) {
   memset(&info, 0, sizeof(info));
 
   info.StartupInfo.cb = sizeof(STARTUPINFOEXW);
-  info.StartupInfo.dwFlags |= STARTF_USESTDHANDLES;
+  info.StartupInfo.dwFlags = STARTF_USESTDHANDLES;
 
   size_t attr_len;
   InitializeProcThreadAttributeList(NULL, 1, 0, &attr_len);
