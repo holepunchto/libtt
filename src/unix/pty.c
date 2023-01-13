@@ -154,7 +154,7 @@ static void
 on_write (uv_write_t *uv_req, int status) {
   tt_pty_write_t *req = (tt_pty_write_t *) uv_req;
 
-  req->on_write(req, status);
+  if (req->on_write) req->on_write(req, status);
 }
 
 int
