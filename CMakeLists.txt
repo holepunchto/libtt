@@ -1,11 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
 
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
-
-if(WIN32)
-  set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
-endif()
-
 project(tt C)
 
 add_subdirectory(vendor/libuv EXCLUDE_FROM_ALL)
@@ -56,6 +50,7 @@ set_target_properties(
   tt_shared
   PROPERTIES
   OUTPUT_NAME tt
+  WINDOWS_EXPORT_ALL_SYMBOLS ON
 )
 
 target_link_libraries(
