@@ -2,7 +2,9 @@ cmake_minimum_required(VERSION 3.22)
 
 project(tt C)
 
-add_subdirectory(vendor/libuv EXCLUDE_FROM_ALL)
+if(NOT TARGET uv)
+  add_subdirectory(vendor/libuv EXCLUDE_FROM_ALL)
+endif()
 
 add_library(tt OBJECT)
 
@@ -10,7 +12,7 @@ set_target_properties(
   tt
   PROPERTIES
   C_STANDARD 99
-  POSITION_INDEPENDENT_CODE 1
+  POSITION_INDEPENDENT_CODE ON
 )
 
 target_sources(
@@ -41,7 +43,7 @@ target_include_directories(
   tt
   PUBLIC
     include
-    $<TARGET_PROPERTY:uv,INCLUDE_DIRECTORIES>
+    $<TARGET_PROPERTY:uv,INTERFACE_INCLUDE_DIRECTORIES>
 )
 
 add_library(tt_shared SHARED $<TARGET_OBJECTS:tt>)
@@ -78,7 +80,7 @@ set_target_properties(
 target_link_libraries(
   tt_static
   PUBLIC
-    uv
+    uv_a
 )
 
 if(UNIX)
@@ -92,6 +94,7 @@ endif()
 install(TARGETS tt_shared tt_static)
 
 install(FILES include/tt.h DESTINATION include)
+
 install(DIRECTORY include/tt DESTINATION include)
 
 if(PROJECT_IS_TOP_LEVEL)
