@@ -8,4 +8,4 @@ See [`include/tt.h`](include/tt.h) for the public API.
 
 ## License
 
-ISC
+Apache 2.0
