@@ -46,7 +46,7 @@ target_include_directories(
     $<TARGET_PROPERTY:uv,INTERFACE_INCLUDE_DIRECTORIES>
 )
 
-add_library(tt_shared SHARED $<TARGET_OBJECTS:tt>)
+add_library(tt_shared SHARED)
 
 set_target_properties(
   tt_shared
@@ -58,6 +58,7 @@ set_target_properties(
 target_link_libraries(
   tt_shared
   PUBLIC
+    tt
     uv
 )
 
@@ -69,7 +70,7 @@ if(UNIX)
   )
 endif()
 
-add_library(tt_static STATIC $<TARGET_OBJECTS:tt>)
+add_library(tt_static STATIC)
 
 set_target_properties(
   tt_static
@@ -80,6 +81,7 @@ set_target_properties(
 target_link_libraries(
   tt_static
   PUBLIC
+    tt
     uv_a
 )
 
