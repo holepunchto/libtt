@@ -76,6 +76,7 @@ set_target_properties(
   tt_static
   PROPERTIES
   OUTPUT_NAME tt
+  PREFIX lib
 )
 
 target_link_libraries(
