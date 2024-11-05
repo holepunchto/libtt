@@ -224,7 +224,7 @@ tt_prepare_console_environment (const tt_process_options_t *process, PWCHAR *pen
     offset += pair_len;
   }
 
-  env[offset] = NULL;
+  env[offset] = L'\0';
 
   *penv = env;
 
@@ -291,7 +291,7 @@ static void
 on_process_exit (uv_async_t *async) {
   tt_pty_t *handle = (tt_pty_t *) async->data;
 
-  GetExitCodeProcess(handle->console.process, &handle->exit_status);
+  GetExitCodeProcess(handle->console.process, (LPDWORD) &handle->exit_status);
 
   handle->on_exit(handle, handle->exit_status, handle->term_signal);
 
