@@ -12,6 +12,7 @@
   },
   "homepage": "https://github.com/holepunchto/libtt#readme",
   "devDependencies": {
-    "cmake-fetch": "^1.0.0"
+    "cmake-fetch": "^1.4.9",
+    "cmake-harden": "^1.0.0"
   }
 }
