@@ -1,12 +1,15 @@
-cmake_minimum_required(VERSION 3.25)
+cmake_minimum_required(VERSION 4.0)
 
 find_package(cmake-fetch REQUIRED PATHS node_modules/cmake-fetch)
+find_package(cmake-harden REQUIRED PATHS node_modules/cmake-harden)
 
 project(tt C)
 
-fetch_package("github:libuv/libuv@1.48.0")
+fetch_package("github:libuv/libuv@1.51.0")
 
 add_library(tt OBJECT)
+
+harden(tt)
 
 set_target_properties(
   tt
