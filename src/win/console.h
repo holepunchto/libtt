@@ -9,7 +9,7 @@
 #include <windows.h>
 
 HRESULT WINAPI
-CreatePseudoConsole (
+CreatePseudoConsole(
   _In_ COORD size,
   _In_ HANDLE hInput,
   _In_ HANDLE hOutput,
@@ -18,12 +18,12 @@ CreatePseudoConsole (
 );
 
 void WINAPI
-ClosePseudoConsole (
+ClosePseudoConsole(
   _In_ HPCON hPC
 );
 
 HRESULT WINAPI
-ResizePseudoConsole (
+ResizePseudoConsole(
   _In_ HPCON hPC,
   _In_ COORD size
 );

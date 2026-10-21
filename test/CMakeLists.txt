@@ -3,6 +3,7 @@ list(APPEND tests
   resize
   spawn
   spawn-bad-file
+  spawn-big-write
   spawn-exit-status
 )
 
