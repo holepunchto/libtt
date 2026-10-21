@@ -11,6 +11,7 @@ bool close_called = false;
 bool exit_called = false;
 
 size_t read_total = 0;
+size_t payload_total = 0;
 
 char read_buf[64 * 1024];
 
@@ -33,6 +34,10 @@ on_read(tt_pty_t *pty, ssize_t read_len, const uv_buf_t *buf) {
   assert(read_len >= 0);
 
   read_total += read_len;
+
+  for (ssize_t i = 0; i < read_len; i++) {
+    if (buf->base[i] == 'a') payload_total++;
+  }
 }
 
 static void
@@ -69,7 +74,14 @@ main() {
 
   assert(close_called);
   assert(exit_called);
+#if defined(_WIN32)
+  // The pseudoconsole renders the output, adding escape sequences and line
+  // breaks, and may repaint lines it has already sent.
+  assert(payload_total >= 64 * 1024);
+#else
   assert(read_total == 64 * 1024);
+  assert(payload_total == 64 * 1024);
+#endif
 
   return 0;
 }
