@@ -6,7 +6,7 @@
 uv_loop_t *loop;
 
 int
-main () {
+main() {
   int e;
 
   loop = uv_default_loop();

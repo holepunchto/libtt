@@ -7,7 +7,7 @@
 #include "../tt.h"
 
 struct tt_pty_s {
-  uv_tty_t tty;
+  uv_pipe_t tty;
   uv_process_t process;
 
   int primary;

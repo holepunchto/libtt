@@ -13,12 +13,12 @@ bool exit_called = false;
 bool read_called = false;
 
 static void
-on_close (tt_pty_t *handle) {
+on_close(tt_pty_t *handle) {
   close_called = true;
 }
 
 static void
-on_process_exit (tt_pty_t *handle, int64_t exit_status, int term_signal) {
+on_process_exit(tt_pty_t *handle, int64_t exit_status, int term_signal) {
   exit_called = true;
 
   assert(exit_status == 0);
@@ -27,7 +27,7 @@ on_process_exit (tt_pty_t *handle, int64_t exit_status, int term_signal) {
 }
 
 static void
-on_read (tt_pty_t *pty, ssize_t read_len, const uv_buf_t *buf) {
+on_read(tt_pty_t *pty, ssize_t read_len, const uv_buf_t *buf) {
   read_called = true;
 
   assert(read_len > 0);
@@ -37,13 +37,13 @@ on_read (tt_pty_t *pty, ssize_t read_len, const uv_buf_t *buf) {
 }
 
 static void
-on_alloc (tt_pty_t *pty, size_t suggested_size, uv_buf_t *buf) {
+on_alloc(tt_pty_t *pty, size_t suggested_size, uv_buf_t *buf) {
   buf->base = malloc(suggested_size);
   buf->len = suggested_size;
 }
 
 int
-main () {
+main() {
   int e;
 
   loop = uv_default_loop();

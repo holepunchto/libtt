@@ -38,31 +38,31 @@ struct tt_process_options_s {
 };
 
 int
-tt_pty_spawn (uv_loop_t *loop, tt_pty_t *handle, const tt_term_options_t *term, const tt_process_options_t *process, tt_pty_exit_cb exit_cb);
+tt_pty_spawn(uv_loop_t *loop, tt_pty_t *handle, const tt_term_options_t *term, const tt_process_options_t *process, tt_pty_exit_cb exit_cb);
 
 int
-tt_pty_read_start (tt_pty_t *handle, tt_pty_alloc_cb alloc_cb, tt_pty_read_cb cb);
+tt_pty_read_start(tt_pty_t *handle, tt_pty_alloc_cb alloc_cb, tt_pty_read_cb cb);
 
 int
-tt_pty_read_stop (tt_pty_t *handle);
+tt_pty_read_stop(tt_pty_t *handle);
 
 int
-tt_pty_write (tt_pty_write_t *req, tt_pty_t *handle, const uv_buf_t bufs[], unsigned int bufs_len, tt_pty_write_cb cb);
+tt_pty_write(tt_pty_write_t *req, tt_pty_t *handle, const uv_buf_t bufs[], unsigned int bufs_len, tt_pty_write_cb cb);
 
 int
-tt_pty_resize (tt_pty_t *handle, int width, int height);
+tt_pty_resize(tt_pty_t *handle, int width, int height);
 
 void
-tt_pty_close (tt_pty_t *handle, tt_pty_close_cb cb);
+tt_pty_close(tt_pty_t *handle, tt_pty_close_cb cb);
 
 int
-tt_pty_kill (tt_pty_t *handle, int signum);
+tt_pty_kill(tt_pty_t *handle, int signum);
 
 uv_pid_t
-tt_pty_get_pid (tt_pty_t *handle);
+tt_pty_get_pid(tt_pty_t *handle);
 
 int
-tt_pty_get_size (tt_pty_t *handle, int *width, int *height);
+tt_pty_get_size(tt_pty_t *handle, int *width, int *height);
 
 #ifdef __cplusplus
 }

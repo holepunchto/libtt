@@ -9,12 +9,12 @@
 uv_loop_t *loop;
 
 static void
-on_process_exit (tt_pty_t *handle, int64_t exit_status, int term_signal) {
+on_process_exit(tt_pty_t *handle, int64_t exit_status, int term_signal) {
   tt_pty_close(handle, NULL);
 }
 
 int
-main () {
+main() {
   int e;
 
   loop = uv_default_loop();

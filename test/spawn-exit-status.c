@@ -10,7 +10,7 @@ uv_loop_t *loop;
 bool exit_called = false;
 
 static void
-on_process_exit (tt_pty_t *handle, int64_t exit_status, int term_signal) {
+on_process_exit(tt_pty_t *handle, int64_t exit_status, int term_signal) {
   exit_called = true;
 
   assert(exit_status == 42);
@@ -19,7 +19,7 @@ on_process_exit (tt_pty_t *handle, int64_t exit_status, int term_signal) {
 }
 
 int
-main () {
+main() {
   int e;
 
   loop = uv_default_loop();
