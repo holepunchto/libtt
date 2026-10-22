@@ -210,3 +210,8 @@ int
 tt_pty_kill(tt_pty_t *handle, int signum) {
   return uv_process_kill(&handle->process, signum);
 }
+
+char *
+tt_pty_get_name(tt_pty_t *handle) {
+  return ptsname(handle->primary);
+}

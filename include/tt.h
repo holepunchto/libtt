@@ -61,6 +61,9 @@ tt_pty_kill(tt_pty_t *handle, int signum);
 uv_pid_t
 tt_pty_get_pid(tt_pty_t *handle);
 
+char *
+tt_pty_get_name(tt_pty_t *handle);
+
 int
 tt_pty_get_size(tt_pty_t *handle, int *width, int *height);
 
