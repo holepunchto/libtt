@@ -1,3 +1,7 @@
+#if defined(__linux__)
+#define _GNU_SOURCE
+#endif
+
 #include <assert.h>
 #include <errno.h>
 #include <stdbool.h>
@@ -209,4 +213,12 @@ tt_pty_close(tt_pty_t *handle, tt_pty_close_cb cb) {
 int
 tt_pty_kill(tt_pty_t *handle, int signum) {
   return uv_process_kill(&handle->process, signum);
+}
+
+int
+tt_pty_get_name(tt_pty_t *handle, char *name, size_t len) {
+  int res = ptsname_r(handle->primary, name, len);
+  if (res < 0) return uv_translate_sys_error(errno);
+
+  return 0;
 }

@@ -515,3 +515,10 @@ tt_pty_kill(tt_pty_t *handle, int signum) {
 
   return uv_kill(handle->pid, signum);
 }
+
+int
+tt_pty_get_name(tt_pty_t *handle, char *name, size_t len) {
+  if (name != NULL && len > 0) name[0] = '\0'; // Empty string
+
+  return 0;
+}
