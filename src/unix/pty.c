@@ -211,7 +211,10 @@ tt_pty_kill(tt_pty_t *handle, int signum) {
   return uv_process_kill(&handle->process, signum);
 }
 
-char *
-tt_pty_get_name(tt_pty_t *handle) {
-  return ptsname(handle->primary);
+int
+tt_pty_get_name(tt_pty_t *handle, char *name, size_t len) {
+  int res = ptsname_r(handle->primary, name, len);
+  if (res < 0) return uv_translate_sys_error(errno);
+
+  return 0;
 }
